@@ -1,0 +1,33 @@
+version: 1
+name: hf-local-faster-whisper-gemma-kokoro
+
+target:
+  url: ws://127.0.0.1:18765/v1/realtime?model=local-gemma
+
+load:
+  sessions: 1
+  concurrency: 1
+
+timeout_s: 90
+
+session:
+  type: realtime
+  instructions: Answer in one short sentence.
+  audio:
+    input:
+      format: {type: audio/pcm, rate: 24000}
+      turn_detection: {type: server_vad, interrupt_response: true}
+    output:
+      format: {type: audio/pcm, rate: 24000}
+
+turns:
+  - name: cold-turn
+    audio: ../../artifacts/fixture-24khz.wav
+    settle_ms: 250
+  - name: warm-turn
+    audio: ../../artifacts/fixture-24khz.wav
+    settle_ms: 250
+
+budgets:
+  - {metric: success_rate, min_rate: 1.0}
+  - {metric: e2e_first_audio, percentile: p95, max_ms: 5000}

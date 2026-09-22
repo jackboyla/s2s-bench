@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+      - run: uv sync --all-extras --dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - run: uv run pytest --cov --cov-report=term-missing --cov-report=xml
+
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync
+      - name: Start deterministic target
+        run: uv run s2s-bench mock > mock.log 2>&1 &
+      - name: Wait for target
+        run: |
+          for attempt in $(seq 1 30); do
+            if python -c 'import socket; socket.create_connection(("127.0.0.1", 9876), 1).close()'; then exit 0; fi
+            sleep 0.2
+          done
+          cat mock.log
+          exit 1
+      - run: uv run s2s-bench run examples/mock-smoke.yaml --output artifacts/ci
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: s2s-bench-report
+          path: |
+            artifacts/ci
+            mock.log

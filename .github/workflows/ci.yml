@@ -34,17 +34,21 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv sync
-      - name: Start deterministic target
-        run: uv run s2s-bench mock > mock.log 2>&1 &
-      - name: Wait for target
+      - name: Run smoke benchmark
         run: |
+          uv run s2s-bench mock > mock.log 2>&1 &
+          mock_pid=$!
+          trap 'kill "$mock_pid" 2>/dev/null || true' EXIT
+
           for attempt in $(seq 1 30); do
-            if python -c 'import socket; socket.create_connection(("127.0.0.1", 9876), 1).close()'; then exit 0; fi
+            if python -c 'import socket; socket.create_connection(("127.0.0.1", 9876), 1).close()'; then
+              uv run s2s-bench run examples/mock-smoke.yaml --output artifacts/ci
+              exit
+            fi
             sleep 0.2
           done
           cat mock.log
           exit 1
-      - run: uv run s2s-bench run examples/mock-smoke.yaml --output artifacts/ci
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -36,6 +36,12 @@
 - Debug the local `speech-to-speech` backend startup before publishing live model numbers.
 - Add WebRTC and server-VAD overlapping-speech actions in later releases.
 
+## CI follow-up (2026-09-22)
+
+- GitHub Actions run `35738644512` passed lint, format, type checks, tests, coverage, and the smoke benchmark.
+- The smoke job failed during `setup-uv` cleanup because the background mock server still held the uv cache lock.
+- Updated the smoke step to own the mock server process and stop it with a shell exit trap before action cleanup.
+
 ## Commands run
 
 - Workstation health checks from `AGENTS.md`.

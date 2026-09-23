@@ -345,3 +345,79 @@ Reject the run as benchmark evidence. Keep the scenario and logs for follow-up; 
 - Data issue? the source WAV was converted to mono PCM16 at 24 kHz with trailing silence
 - Code issue? no harness error observed
 - Anything to change next? debug upstream handler initialization separately, then rerun `progress/evaluations/hf-local.yaml`
+
+## 2026-09-22—ci-smoke-cleanup-001
+
+### Intent
+
+Reproduce the GitHub Actions smoke job and verify that its mock server exits before `setup-uv` cache cleanup. Compare against Actions run `35738644512`, where every project check passed but post-job cleanup timed out on the uv cache lock.
+
+### Environment
+
+- Machine: `radiance-ws`
+- GPUs used: none
+- CUDA_VISIBLE_DEVICES: not set
+- Git commit: `8b4e6ce7b3d7f7c54897b31930fb07115f902e98` plus the local CI fix
+- Branch: `main`
+- Python environment: project uv environment, Python 3.12.3
+- Docker image, if applicable: none
+
+### Resource check before launch
+
+Not needed; this was a short CPU-only CI smoke test.
+
+### Commands
+
+#### Inference
+
+```bash
+uv run s2s-bench mock > /tmp/s2s-bench-ci-mock.log 2>&1 &
+mock_pid=$!
+trap 'kill "$mock_pid" 2>/dev/null || true' EXIT
+uv run s2s-bench run examples/mock-smoke.yaml --output /tmp/s2s-bench-ci-artifacts
+```
+
+#### Eval
+
+```bash
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy
+uv run pytest --cov --cov-report=term-missing --cov-report=xml
+git diff --check
+```
+
+### Artifacts
+
+- Logs: `/tmp/s2s-bench-ci-mock.log`
+- Checkpoints: none
+- Predictions: `/tmp/s2s-bench-ci-artifacts`
+- Metrics: 16/16 turns passed; 90.77% test coverage
+- Eval summary: lint, format, types, 30 tests, coverage gate, and smoke benchmark passed
+- GPU metrics: not applicable
+
+### Result
+
+Base: the GitHub smoke benchmark passed, but its background `uv run` process held the cache lock and made post-job cleanup fail after 300 seconds.
+
+Candidate: the mock target and benchmark run in one shell step with an exit trap that stops the mock process.
+
+Delta:
+
+- Wins / losses: all checks passed; no `s2s-bench mock` process remained after the step
+- Failure modes: the first local readiness probe used `python`, which is supplied by `setup-uv` in Actions but is not on this workstation's base PATH; the local reproduction used `python3`
+- GPU utilization: not applicable
+- Memory usage: not measured
+- Runtime: smoke benchmark 1.94 seconds; full checks under one second
+
+### Decision
+
+Keep the workflow fix and trigger a fresh Actions run after pushing it.
+
+### Notes
+
+- Repeated-output diagnostics? no
+- GPU utilization or memory issue? no
+- Data issue? no
+- Code issue? CI process-lifecycle bug fixed
+- Anything to change next? push the workflow update and confirm the new Actions run succeeds

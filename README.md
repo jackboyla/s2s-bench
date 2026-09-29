@@ -1,5 +1,12 @@
 # s2s-bench
 
+> **This project has moved into [dead-air](https://github.com/jackboyla/dead-air).**
+> Its mock target, latency budgets, run comparison and protocol checks now live
+> there as `deadair mock`, `deadair probe --budget` / `deadair gate`,
+> `deadair compare`, and the reducer's protocol violation counts. dead-air also has
+> real measurements of Hugging Face `speech-to-speech` on local GPUs. This
+> repository is kept for reference and is no longer maintained.
+
 `s2s-bench` measures what users feel and operators debug in a realtime voice agent: turn-finalization delay, final-transcript delay, LLM first text, TTS first audio, end-to-end time to first audio, cancellation time, stale output, and failure rate.
 
 It drives the OpenAI Realtime WebSocket event set, including the implementation in [Hugging Face speech-to-speech](https://github.com/huggingface/speech-to-speech). It runs the same checked-in scenario against a local model stack, a remote deployment, or the deterministic mock target included here.
